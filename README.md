@@ -359,3 +359,153 @@ app.post('/search', (req, res) => {
 	res.send('');
 });
 ```
+# Routes & Controllers
+Create folder: src/routes, src/app/controllers
+## Routes
+Create file: src/routes/news.js, src/app/controllers/NewsController.js
+## Controllers
+Let's set class at the same name <br> and add GET method
+**src/app/controllers/NewsController.js**
+```js
+
+class NewsController {
+
+	// [GET] /news
+	index(req, res) {
+		res.render('news');
+	}
+
+}
+
+module.exports = new NewsController;
+```
+It will be add instance and export out. <br>
+Let's set configure route for news <br>
+**src/index.js**
+```js
+const route = require('./routes');
+// Routes init
+route(app);
+```
+**src/routes/index.js**
+```js
+
+function route(app) {
+
+	app.get('/', (req, res) => {
+		res.render('home');
+	});
+	
+	app.get('/news', (req, res) => {
+		res.render('news');
+	});
+	
+	app.get('/search', (req, res) => {
+		res.render('search');
+	});
+	
+	app.post('/search', (req, res) => {
+		res.send('');
+	});
+
+}
+
+module.exports = route;
+```
+**src/routes/news.js**
+```js
+const express = require('express');
+const router = express.Router();
+
+const newsController = require('../app/controllers/NewsController');
+
+// newsController.index
+
+router.use('/', newsController.index);
+
+module.exports = router;
+```
+Add news.js <br>
+**src/index.js**
+```js
+const newsRouter = require('./news');
+
+function route(app) {
+
+	app.use('/news', newsRouter);
+
+	app.get('/', (req, res) => {
+		res.render('home');
+	});
+	
+	app.get('/search', (req, res) => {
+		res.render('search');
+	});
+	
+	app.post('/search', (req, res) => {
+		res.send('');
+	});
+
+}
+
+module.exports = route;
+```
+Add slug PATH variable <br>
+**src/app/controllers/NewsController.js**
+```js
+// [GET] /news/:slug
+show(req, res) {
+  res.send('NEWS DETAIL!!!');
+}
+```
+**src/routes/news.js**
+```js
+router.use('/:slug', newsController.show);
+```
+Copy news.js and change to site.js, copy NewsController.js and change to SiteController.js <br>
+**src/routes/site.js**
+```js
+const express = require('express');
+const router = express.Router();
+
+const siteController = require('../app/controllers/SiteController');
+
+router.use('/search', siteController.search);
+router.use('/', siteController.index);
+
+module.exports = router;
+```
+**src/app/controllers/SiteController.js**
+```js
+
+class SiteController {
+
+	// [GET] /
+	index(req, res) {
+		res.render('home');
+	}
+
+	// [GET] /search
+	search(req, res) {
+		res.render('search');
+	}
+
+}
+
+module.exports = new SiteController;
+```
+Update: **src/routes/index.js**
+```js
+const newsRouter = require('./news');
+const siteRouter = require('./site');
+
+function route(app) {
+
+	app.use('/news', newsRouter);
+
+	app.use('/', siteRouter);
+
+}
+
+module.exports = route;
+```
