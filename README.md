@@ -509,3 +509,5 @@ function route(app) {
 
 module.exports = route;
 ```
+# Install MongoDB
+Go to: https://www.mongodb.com/try/download/community -> Select package and choose package file type is msi.
