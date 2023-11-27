@@ -511,3 +511,18 @@ module.exports = route;
 ```
 # Install MongoDB
 Go to: https://www.mongodb.com/try/download/community -> Select package and choose package file type is msi.
+
+Set URI: `127.0.0.1:27017`
+# Prettier, lint-staged and husky
+Install: `npm i prettier lint-staged husky --save-dev`
+## Prettier
+To use CLI, type command: `prettier --single-quote --trailing-comma all --tab-width 4 --write 'src/**/*.{js,json,scss}'`
+## Lint-staged
+Command: 
+```json
+"lint-staged": {
+	"src/**/*.{js,json,scss}": "prettier --single-quote --trailing-comma all --tab-width 4 --write"
+},
+```
+It run when add file to git
+## Husky
