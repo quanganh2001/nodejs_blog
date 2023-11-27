@@ -531,7 +531,86 @@ It run when add file to git
 ## Husky
 Command: 
 ```json
-"lint-staged": {
-	"src/**/*.{js,json,scss}": "prettier --single-quote --trailing-comma all --tab-width 4 --write"
+"beautiful": "lint-staged",
+"husky": {
+	"hooks": {
+		"pre-commit": "lint-staged"
+	}
 },
+```
+# MVC Model
+Create database in MongoDB: `f8_education_dev`, collection name: `courses`
+## Install mongoose
+Type: `npm install mongoose` and `npm install mongodb`
+## Connect to DB
+Create file: `src/config/db/index.js`
+```js
+const mongoose = require('mongoose');
+
+async function connect() {
+	try {
+		await mongoose.connect('mongodb://127.0.0.1:27017/f8_education_dev', {
+			useNewUrlParser: true,
+			useUnifiedTopology: true
+		});
+		console.log('Connection successfully!');
+	} catch (error) {
+		console.log('Connection failure!!!');
+	}
+}
+
+module.exports = { connect };
+```
+Sometimes you should wait 30 seconds to log connection failed, otherwise connection successfully!
+**src/index.js**
+```js
+const route = require('./routes');
+const db = require('./config/db');
+
+// Connect to DB
+db.connect();
+```
+## Create a model
+Create file: `src/app/models/Course.js`, accessing a model
+```js
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const Course = new Schema({
+	name: { type: String, maxLength: 255 },
+	description: { type: String, maxLength: 600 },
+	image: { type: String, maxLength: 255 },
+	createdAt: { type: Date, default: Date.now },
+	updatedAt: { type: Date, default: Date.now },
+});
+
+module.exports = mongoose.model('Course', Course);
+```
+## Exports data
+**src/app/controllers/SiteController.js**
+```js
+const Course = require('../models/Course');
+
+class SiteController {
+    // [GET] /
+    index(req, res) {
+
+        Course.find({}, function (err, courses) {
+            if (!err) {
+                res.json(courses);
+            } else {
+                res.status(400).json({ error: 'ERROR!!!' });
+            }
+        });
+
+        // res.render('home');
+    }
+
+    // [GET] /search
+    search(req, res) {
+        res.render('search');
+    }
+}
+
+module.exports = new SiteController();
 ```
