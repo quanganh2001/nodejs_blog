@@ -526,3 +526,9 @@ Command:
 ```
 It run when add file to git
 ## Husky
+Command: 
+```json
+"lint-staged": {
+	"src/**/*.{js,json,scss}": "prettier --single-quote --trailing-comma all --tab-width 4 --write"
+},
+```
