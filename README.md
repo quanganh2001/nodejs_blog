@@ -517,6 +517,9 @@ Set URI: `127.0.0.1:27017`
 Install: `npm i prettier lint-staged husky --save-dev`
 ## Prettier
 To use CLI, type command: `prettier --single-quote --trailing-comma all --tab-width 4 --write 'src/**/*.{js,json,scss}'`
+- `--single-quote`: Change double quote to single quote
+- `--trailing-comma`: Add comma
+- `--tab-width 4`: Tab width is 4
 ## Lint-staged
 Command: 
 ```json
