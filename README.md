@@ -614,3 +614,30 @@ class SiteController {
 
 module.exports = new SiteController();
 ```
+# Install JSON Viewer Extension
+You can search json viewer and install extension now.
+## Route methods
+Fix to GET methods
+
+**src/routes/site.js**
+```js
+router.get('/search', siteController.search);
+router.get('/', siteController.index);
+```
+**src/routes/news.js**
+```js
+router.get('/:slug', newsController.show);
+router.get('/', newsController.index);
+```
+## App listen log
+**index.js**
+```js
+app.listen(port, () =>
+    console.log(`App listening on port http://localhost:${port}`),
+);
+```
+## Resource path
+**index.js**
+```js
+app.set('views', path.join(__dirname, 'resources', 'views'));
+```
