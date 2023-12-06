@@ -641,3 +641,134 @@ app.listen(port, () =>
 ```js
 app.set('views', path.join(__dirname, 'resources', 'views'));
 ```
+# Read from DB
+## Promises
+**src/app/controllers/SiteController.js**
+```js
+const Course = require('../models/Course');
+
+class SiteController {
+    // [GET] /
+    index(req, res, next) {
+        Course.find({})
+            .then(courses => res.render('home'))
+            .catch(next);
+    }
+
+    // [GET] /search
+    search(req, res) {
+        res.render('search');
+    }
+}
+
+module.exports = new SiteController();
+
+```
+It will be render homepage.
+## Fix UI page
+Keyword this represent element
+```hbs
+<div class="mt-4">
+	<div class="row">
+
+		{{#each courses}}
+		<div class="col-sm-6 col-lg-4">
+			<div class="card">
+				<img class="card-img-top" src="..." alt="Card image cap">
+				<div class="card-body">
+					<h5 class="card-title">Card title</h5>
+					<p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+					<a href="#" class="btn btn-primary">Go somewhere</a>
+				</div>
+			</div>
+		</div>
+		{{/each}}
+
+	</div>
+</div>
+```
+**src/resources/scss/app.scss**
+```scss
+@import 'variables';
+
+.card-course-item {
+	margin-top: 16px;
+}
+```
+## Render name
+Starting from Handlebars version 4.6 has a security update, so this keyword is a document object by MongoDB created. 
+
+_So how to fix this error?_
+
+Method 1: You can downgrade handlebars version to 4.5.0, go to devDepencies and run `npm install` again.
+```json
+"devDependencies": {
+	"express-handlebars": "^4.5.0",
+	"husky": "^8.0.3",
+	"lint-staged": "^15.1.0",
+	"morgan": "^1.10.0",
+	"node-sass": "^9.0.0",
+	"nodemon": "^3.0.1",
+	"prettier": "^3.1.0"
+}
+```
+Method 2: Edit data using `toObject` method to return literal object.
+
+**src/app/controllers/SiteController.js**
+```js
+class SiteController {
+    // [GET] /
+    index(req, res, next) {
+        Course.find({})
+            .then(courses => {
+                courses = courses.map(course => course.toObject())
+                res.render('home', { courses });
+            })
+            .catch(next);
+    }
+
+    // [GET] /search
+    search(req, res) {
+        res.render('search');
+    }
+}
+```
+
+But I want to create function to don't repeat this logic, so I create util folder in the src folder, then create `mongoose.js`. There are 2 variables `multipleMongooseToObject` and `mongooseToObject`
+```js
+module.exports = {
+	multipleMongooseToObject: function (mongooses) {
+		return mongooses.map(mongoose => mongoose.toObject());
+	},
+	mongooseToObject: function (mongoose) {
+		return mongoose ? mongoose.toObject() : mongoose;
+	}
+};
+```
+Then I import `mongoose.js` from `SiteController.js`
+
+**src/app/controllers/SiteController.js**
+```js
+const { multipleMongooseToObject } = require('../../util/mongoose');
+
+class SiteController {
+    // [GET] /
+    index(req, res, next) {
+        Course.find({})
+            .then(courses => {
+                res.render('home', { 
+                    courses: multipleMongooseToObject(courses)
+                });
+            })
+            .catch(next);
+    }
+
+    // [GET] /search
+    search(req, res) {
+        res.render('search');
+    }
+}
+```
+Output:
+
+![Alt text](https://images2.imgbox.com/ef/e0/TEXG9Q8W_o.png)
