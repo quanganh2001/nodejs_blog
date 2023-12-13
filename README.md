@@ -772,3 +772,97 @@ class SiteController {
 Output:
 
 ![Alt text](https://images2.imgbox.com/ef/e0/TEXG9Q8W_o.png)
+# Course detail page
+## Add slug
+**src/resources/views/home.hbs**
+```hbs
+<div class="mt-4">
+	<div class="row">
+
+		{{#each courses}}
+		<div class="col-sm-6 col-lg-4">
+			<div class="card card-course-item">
+				<a href="/courses/{{this.slug}}">
+					<img class="card-img-top" src="{{this.image}}" alt="{{this.name}}">
+				</a>
+				<div class="card-body">
+					<a href="/courses/{{this.slug}}">
+						<h5 class="card-title">{{this.name}}</h5>
+					</a>
+					<p class="card-text">{{this.description}}</p>
+					<a href="#" class="btn btn-primary">Mua khóa học</a>
+				</div>
+			</div>
+		</div>
+		{{/each}}
+
+	</div>
+</div>
+```
+## Create courses routes
+**src/routes/courses.js**
+```js
+const express = require('express');
+const router = express.Router();
+
+const courseController = require('../app/controllers/CourseController');
+
+router.get('/:slug', courseController.show);
+
+module.exports = router;
+
+```
+**src/app/controllers/CourseController.js**
+```js
+const Course = require('../models/Course');
+const { mongooseToObject } = require('../../util/mongoose');
+
+class CourseController {
+    // [GET] /courses/:slug
+    show(req, res, next) {
+        Course.findOne({ slug: req.params.slug })
+            .then(course => 
+                res.render('courses/show', { course: mongooseToObject(course) })
+            )
+            .catch(next);
+    }
+}
+
+module.exports = new CourseController();
+
+```
+**src/routes/index.js**
+```js
+const newsRouter = require('./news');
+const coursesRouter = require('./courses');
+const siteRouter = require('./site');
+
+function route(app) {
+    app.use('/news', newsRouter);
+    app.use('/courses', coursesRouter);
+
+    app.use('/', siteRouter);
+}
+
+module.exports = route;
+
+```
+Let's create a description courses: a description and a video
+```hbs
+<div class="mt-4">
+	<div class="row">
+		<div class="col-lg-3">
+			<button>HỌC NGAY</button>
+			<ul>
+				<li>{{course.level}}</li>
+			</ul>
+		</div>
+
+		<div class="col-lg-9">
+			<h2>{{course.name}}</h2>
+			<iframe width="560" height="315" src="https://www.youtube.com/embed/{{course.videoId}}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+			<p>{{course.description}}</p>
+		</div>
+	</div>
+</div>
+```
