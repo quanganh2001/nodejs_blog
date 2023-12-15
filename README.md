@@ -866,3 +866,160 @@ Let's create a description courses: a description and a video
 	</div>
 </div>
 ```
+# Create new course
+## Add create method
+**src/routes/courses.js**
+```js
+router.get('/create', courseController.create);
+```
+**src/app/controller/CourseController.js**
+```js
+const Course = require('../models/Course');
+const { mongooseToObject } = require('../../util/mongoose');
+
+class CourseController {
+    // [GET] /courses/create
+    create(req, res, next) {
+        res.render('courses/create')
+    }
+}
+
+module.exports = new CourseController();
+
+```
+## Create POST methods
+Let's create many fields: name, description, videoId will be generate, level.
+**src/resources/views/courses/create.hbs**
+```hbs
+<div class="mt-4">
+	<h3>Đăng khóa học</h3>
+
+	<form method="POST" action="/courses/store">
+		<div class="form-group">
+			<label for="name">Tên khóa học</label>
+			<input type="text" class="form-control" id="name" name="name">
+		</div>
+		<div class="form-group">
+			<label for="description">Mô tả</label>
+			<input type="text" class="form-control" id="description" name="description">
+		</div>
+		<div class="form-group">
+			<label for="videoId">Video ID</label>
+			<input type="text" class="form-control" id="videoId" name="videoId">
+		</div>
+		<div class="form-group">
+			<label for="level">Trình độ</label>
+			<input type="text" class="form-control" id="level" name="level">
+		</div>
+
+		<button type="submit" class="btn btn-primary">Thêm khóa học</button>
+	</form>
+</div>
+```
+**src/app/controller/CourseController.js**
+```js
+const Course = require('../models/Course');
+const { mongooseToObject } = require('../../util/mongoose');
+
+class CourseController {
+    // [POST] /courses/store
+    store(req, res, next) {
+        res.json(req.body);
+    }
+}
+
+module.exports = new CourseController();
+
+```
+**src/routes/courses.js**
+```js
+router.post('/store', courseController.store);
+```
+As you can see, it will be send with POST methods and will be render with JSON format.
+
+[![image.png](https://i.postimg.cc/vHjmQGfF/image.png)](https://postimg.cc/ykmKj4Lv)
+## Constructing Documents
+Let's create constructing documents using save method, if you want to save all documents, you should define everything must to insert it.
+
+**src/app/models/Course.js**
+```js
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const Course = new Schema({
+	name: { type: String, required: true, },
+	description: { type: String },
+	image: { type: String },
+	videoId: { type: String, required: true, },
+	level: { type: String },
+}, {
+	timestamps: true,
+});
+
+module.exports = mongoose.model('Course', Course);
+
+```
+`name` and `videoId` are required, then create timestamps to autosave time to create and update documents.
+
+Let's change to create videoId to request send to documents.
+
+**src/app/controller/CourseController.js**
+```js
+const Course = require('../models/Course');
+const { mongooseToObject } = require('../../util/mongoose');
+
+class CourseController {
+    // [POST] /courses/store
+    store(req, res, next) {
+        const formData = req.body;
+        formData.image = `https://i.ytimg.com/vi/${req.body.videoId}/sddefault.jpg`
+        const course = new Course(req.body);
+        course.save();
+
+        res.send('COURSE SAVED!');
+    }
+}
+
+module.exports = new CourseController();
+
+```
+
+[![image.png](https://i.postimg.cc/jjv2YPhv/image.png)](https://postimg.cc/t1Zph1wV)
+
+As you can see, it will be creates timestamp.
+
+Now let's fix to use promise to switch redirect to homepage and add auto slug. Type `npm i mongoose-slug-generator`.
+
+Import plugin and add plugin
+
+**src/app/models/Course.js**
+```js
+const slug = require('mongoose-slug-generator');
+
+mongoose.plugin(slug);
+```
+Usage plugin:
+
+**src/app/models/Course.js**
+```js
+const Course = new Schema({
+	name: { type: String, required: true, },
+	description: { type: String },
+	image: { type: String },
+	videoId: { type: String, required: true, },
+	level: { type: String },
+	slug: { type: String, slug: 'name', unique: true },
+}, {
+	timestamps: true,
+});
+```
+It will be generated name and delete space. Add property `unique` to check it exist one.
+
+Change navbar link:
+
+**src/resources/views/partials/header.hbs**
+```hbs
+<li class="nav-item">
+	<a class="nav-link" href="/courses/create">Đăng khóa học</a>
+</li>
+```
