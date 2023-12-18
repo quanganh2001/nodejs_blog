@@ -1023,3 +1023,274 @@ Change navbar link:
 	<a class="nav-link" href="/courses/create">Đăng khóa học</a>
 </li>
 ```
+# Update course
+## Add dropdown
+We need to add class `container` and change position to margin-left, then add divider dropdown.
+**src/resources/views/partials/header.hbs**
+```hbs
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand" href="/">F8 education</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <img src="https://yt3.googleusercontent.com/UsflU74uvka_3sejOu3LUGwzOhHJV0eIYoWcvOfkOre_c12uIN4ys-QqRlAkbusEmbZjTA-b=s176-c-k-c0x00ffffff-no-rj" alt="" class="user-avatar">
+            Sơn Đặng
+          </a>
+          <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+            <a class="dropdown-item" href="/courses/create">Đăng khóa học</a>
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="/me/stored/courses">Khóa học của tôi</a>
+            <a class="dropdown-item" href="/me/stored/news">Bài viết của tôi</a>
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="#">Đăng xuất</a>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+```
+Change css for avatar image
+**src/resources/scss/app.scss**
+```scss
+.user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+```
+## Add routes and controller for me
+### Add routes
+**src/routes/me.js**
+```js
+const express = require("express");
+const router = express.Router();
+
+const meController = require("../app/controllers/MeController");
+
+router.get("/stored/courses", meController.storedCourses);
+
+module.exports = router;
+
+```
+### Add controller
+**src/app/controllers/MeController.js**
+```js
+const Course = require('../models/Course');
+const { multipleMongooseToObject } = require('../../util/mongoose');
+
+class MeController {
+    // [GET] /me/stored/courses
+    storedCourses(req, res) {
+        res.render("search");
+    }
+}
+
+module.exports = new MeController();
+
+```
+Import router:
+
+**src/routes/index.js**
+```js
+const newsRouter = require("./news");
+const meRouter = require("./me");
+const coursesRouter = require("./courses");
+const siteRouter = require("./site");
+
+function route(app) {
+    app.use("/news", newsRouter);
+    app.use("/me", meRouter);
+    app.use("/courses", coursesRouter);
+
+    app.use("/", siteRouter);
+}
+
+module.exports = route;
+
+```
+Output:
+
+[![image.png](https://i.postimg.cc/C1TFf7YH/image.png)](https://postimg.cc/bGgX7QZs)
+
+[![image.png](https://i.postimg.cc/k4Q7NSgr/image.png)](https://postimg.cc/S2K0kJ9V)
+## Create UI
+We need to create file in the folder `src/resources/views/me/stored-courses.hbs`, then change path `src/app/controllers/MeController.js`
+```js
+class MeController {
+    // [GET] /me/stored/courses
+    storedCourses(req, res) {
+        res.render("me/stored-courses");
+    }
+}
+```
+## Create table to manage courses
+We need to config helpers from `express-handlebar` with add sum function return total a + b.
+
+**src/index.js**
+```js
+// Template engine
+app.engine(
+    "hbs",
+    handlebars({
+        extname: ".hbs",
+        helpers: {
+            sum: (a, b) => a + b,
+        }
+    }),
+);
+```
+Add table and render all databases, then add sum helpers config.
+
+**src/resources/views/me/stored-courses.hbs**
+```hbs
+<div class="mt-4">
+    <h3>Khóa học của tôi</h3>
+
+    <table class="table mt-4">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">Tên khóa học</th>
+                <th scope="col">Trình độ</th>
+                <th scope="col">Thời gian tạo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each courses}}
+            <tr>
+                <th scope="row">{{sum @index 1}}</th>
+                <td>{{this.name}}</td>
+                <td>{{this.level}}</td>
+                <td>{{this.createdAt}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+</div>
+```
+Add multiple objects:
+
+**src/app/controllers/MeController.js**
+```js
+class MeController {
+    // [GET] /me/stored/courses
+    storedCourses(req, res, next) {
+        Course.find({})
+            .then(courses => res.render("me/stored-courses", {
+                courses: multipleMongooseToObject(courses)
+            }))
+            .catch(next);
+    }
+}
+```
+Output:
+
+[![image.png](https://i.postimg.cc/bNcpC327/image.png)](https://postimg.cc/nMkyMK22)
+## Create edit and delete buttons
+**src/resources/views/me/stored-courses.hbs**
+```hbs
+<tbody>
+    {{#each courses}}
+    <tr>
+        <th scope="row">{{sum @index 1}}</th>
+        <td>{{this.name}}</td>
+        <td>{{this.level}}</td>
+        <td>{{this.createdAt}}</td>
+        <td>
+            <a href="/courses/{{this._id}}/edit" class="btn btn-link">Sửa</a>
+            <a href="button" class="btn btn-link">Xóa</a>
+        </td>
+    </tr>
+    {{/each}}
+</tbody>
+```
+We need to get target slug link, which courses want to edit
+
+Add edit router get method:
+
+**src/routes/courses.js**
+```js
+router.get("/:id/edit", courseController.edit);
+```
+
+Add edit GET method:
+
+**src/app/controllers/CourseController.js**
+```js
+// [GET] /courses/edit
+edit(req, res, next) {
+    res.render('courses/edit');
+}
+```
+
+Add edit views:
+
+**src/resources/views/courses/edit.hbs**
+```hbs
+<div class="mt-4">
+    <h3>Cập nhật khóa học</h3>
+
+    <form class="mt-4" method="POST" action="/courses/{{course._id}}">
+        <div class="form-group">
+            <label for="name">Tên khóa học</label>
+            <input type="text" class="form-control" value="{{course.name}}" id="name" name="name">
+        </div>
+        <div class="form-group">
+            <label for="description">Mô tả</label>
+            <textarea class="form-control" id="description" name="description">{{course.description}}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="videoId">Video ID</label>
+            <input type="text" class="form-control" value="{{course.videoId}}" id="videoId" name="videoId">
+        </div>
+        <div class="form-group">
+            <label for="level">Trình độ</label>
+            <input type="text" class="form-control" value="{{course.level}}" id="level" name="level">
+        </div>
+        <button type="submit" class="btn btn-primary">Lưu lại</button>
+    </form>
+</div>
+```
+
+**Important: To take some codes are the same, press Ctrl + Shift + L, to take IDs press Alt + Shift + turn right**
+
+It will be send slug id with POST method
+
+## Fix to send PUT method
+Install package: `npm install method-override`
+
+Import package:
+
+**src/index.js**
+```js
+const methodOverride = require('method-override');
+```
+### override using a query value
+**src/index.js**
+```js
+app.use(methodOverride('_method'));
+```
+### Config courses PUT routes
+**src/routes/courses.js**
+```js
+router.put("/:id", courseController.update);
+```
+Updating databases:
+
+**src/app/controllers/CourseController.js**
+```js
+// [PUT] /courses/:id
+update(req, res, next) {
+    Course.updateOne({ _id: req.params.id }, req.body)
+        .then(() => res.redirect('/me/stored/courses'))
+        .catch(next);
+}
+```
