@@ -1294,3 +1294,172 @@ update(req, res, next) {
         .catch(next);
 }
 ```
+# Delete course
+## Fix warning
+As you can see, when I start the project `npm start`, it was warning: 
+```txt
+(node:6628) [MONGOOSE] DeprecationWarning: Mongoose: the `strictQuery` option will be switched back to `false` by default in Mongoose 7. Use `mongoose.set('strictQuery', false);` if you want to prepare for this change. Or use `mongoose.set('strictQuery', true);` to suppress this warning.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+```
+To fix this warning, add code: `mongoose.set('strictQuery', false);` at `src/config/db/index.js`
+## Add modal bootstrap
+Let's go to add modal bootstrap to confim do you want to delete this course
+
+**src/resources/views/me/stored-courses.hbs**
+```hbs
+        <tbody>
+            {{#each courses}}
+            <tr>
+                <th scope="row">{{sum @index 1}}</th>
+                <td>{{this.name}}</td>
+                <td>{{this.level}}</td>
+                <td>{{this.createdAt}}</td>
+                <td>
+                    <a href="/courses/{{this._id}}/edit" class="btn btn-link">Sửa</a>
+                    <a href="" class="btn btn-link" data-toggle="modal" data-target="#delete-course-modal">Xóa</a>
+                </td>
+            </tr>
+            {{/each}}
+        </tbody>
+        
+{{!-- Confirm delete course --}}
+<div id="delete-course-modal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Xóa khóa học?</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Bạn chắc chắn muốn xóa khóa học này?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-danger">Xóa bỏ</button>
+      </div>
+    </div>
+  </div>
+</div>
+```
+Output:
+
+[![image.png](https://i.postimg.cc/vmqWK3Yr/image.png)](https://postimg.cc/GBD88Pst)
+## Add delete method
+Let's go to add delete controller to redirect this URL then delete and redirect to homepage.
+First, add delete routes
+
+**src/routes/courses.js**
+```js
+router.delete("/:id", courseController.destroy);
+```
+**src/app/controllers/CourseController.js**
+```js
+// [DELETE] /courses/:id
+destroy(req, res, next) {
+    Course.deleteOne({ _id: req.params.id })
+        .then(() => res.redirect('back'))
+        .catch(next);
+}
+```
+So the idea is when I delete course, you should take id course. That is `data-whatever`
+```hbs
+<a href="" class="btn btn-link" data-toggle="modal" data-id="{{this._id}} "data-target="#delete-course-modal">Xóa</a>
+```
+Add script when dialog confirm clicked, it will be log id
+```hbs
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // When dialog confirm clicked
+        $('#delete-course-modal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var id = button.data('id');
+            console.log(id);
+        });
+    });
+</script>
+```
+Add id `btn-delete-course'`, then get id element and create function to alert id course
+
+**src/resources/views/me/stored-courses.hbs**
+```hbs
+<button id="btn-delete-course" type="button" class="btn btn-danger">Xóa bỏ</button>
+```
+```hbs
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var courseId;
+
+        // When dialog confirm clicked
+        $('#delete-course-modal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            courseId = button.data('id');
+        });
+
+        var btnDeleteCourse = document.getElementById("btn-delete-course");
+
+        btnDeleteCourse.onclick = function () {
+            alert(courseId);
+        }
+    });
+</script>
+```
+**So, how to click to submit form without alert?**. Let's go to create delete hidden form with `DELETE` method, set name `delete-course-form`
+
+**src/resources/views/me/stored-courses.hbs**
+```hbs
+{{!-- Delete hidden form --}}
+<form name="delete-course-form" method="POST"></form>
+```
+To test, type: `document.forms['delete-course-form'];` to get form element.
+
+We need to set again attribute of this form. We need to create action delete form with override method
+
+**src/resources/views/me/stored-courses.hbs**
+```js
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var courseId;
+        var deleteForm = document.forms['delete-course-form'];
+        var btnDeleteCourse = document.getElementById("btn-delete-course");
+
+        // When dialog confirm clicked
+        $('#delete-course-modal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            courseId = button.data('id');
+        });
+
+        btnDeleteCourse.onclick = function () {
+            deleteForm.action = '/courses/' + courseId + '?_method=DELETE';
+        }
+    });
+</script>
+``` 
+So as you can see, when click Delete button and confirm to delete, it will be add id that want to delete
+
+[![image.png](https://i.postimg.cc/PqQ26m9h/image.png)](https://postimg.cc/B8tTb1Jw)
+
+The next step is submit this form, it will be override method to go to delete, then match `destroy` controller then redirect.
+```js
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var courseId;
+        var deleteForm = document.forms['delete-course-form'];
+        var btnDeleteCourse = document.getElementById('btn-delete-course');
+
+        // When dialog confirm clicked
+        $('#delete-course-modal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            courseId = button.data('id');
+        });
+        
+        // When delete course btn clicked
+        btnDeleteCourse.onclick = function () {
+            deleteForm.action = '/courses/' + courseId + '?_method=DELETE';
+            deleteForm.submit();
+        }
+    });
+</script>
+```
