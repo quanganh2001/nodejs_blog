@@ -1463,3 +1463,279 @@ The next step is submit this form, it will be override method to go to delete, t
     });
 </script>
 ```
+# Soft delete
+## Install and import package
+Install mongoose-delete: Type: `npm i mongoose-delete`
+
+Add plugin:
+
+**/src/app/models/Course.js**
+```js
+const mongooseDelete = require('mongoose-delete');
+
+// Add plugins
+Course.plugin(mongooseDelete);
+mongoose.plugin(slug);
+```
+Fix: When you click to delete, you must not real delete.
+
+**src/app/controllers/CourseController.js**
+```js
+// [DELETE] /courses/:id
+destroy(req, res, next) {
+    Course.delete({ _id: req.params.id })
+        .then(() => res.redirect('back'))
+        .catch(next);
+}
+```
+
+So when you clicked delete button, it not delete permanently, it show delete status is true. It means soft delete.
+
+[![image.png](https://i.postimg.cc/MZVbBWxK/image.png)](https://postimg.cc/SjQMFbJw)
+## Method override
+Let's go to take override all.
+
+**/src/app/models/Course.js**
+```js
+// Add plugins
+mongoose.plugin(slug);
+Course.plugin(mongooseDelete, { overrideMethods: 'all' });
+```
+So let's go to delete all courses, so as you can see although all courses was deleted, but you don't know what time these courses was deleted?
+
+[![image.png](https://i.postimg.cc/nhDHFwB5/image.png)](https://postimg.cc/Mnzkt5sb)
+
+So let's go to add plugin `deleteAt`
+
+**/src/app/models/Course.js**
+```js
+// Add plugins
+mongoose.plugin(slug);
+Course.plugin(mongooseDelete, { 
+    deletedAt: true,
+    overrideMethods: 'all',
+});
+```
+Sorry, but I am deleted all courses, so you should show message within add else statement. If this array has data, it will be render tables. Otherwise, it will be show message. Then add a link to create course.
+
+**src/resources/views/me/stored-courses.hbs**
+```hbs
+<tr>
+    <td colspan="5" class="text-center">
+        Bạn chưa đăng khóa học nào.
+        <a href="/courses/create">Đăng khóa học</a>
+    </td>
+</tr>
+```
+
+[![image.png](https://i.postimg.cc/qvbZFkNH/image.png)](https://postimg.cc/ts65ZGdB)
+## Create trash page
+Let's go to create trash page to restore courses. First, let's go to add trash router
+
+**src/routes/me.js**
+```js
+router.get("/trash/courses", meController.trashCourses);
+```
+
+Second, go to add trash GET method
+
+**src/app/controllers/MeController.js**
+```js
+// [GET] /me/trash/courses
+trashCourses(req, res, next) {
+    Course.find({ })
+        .then(courses => 
+            res.render("me/trash-courses", {
+                courses: multipleMongooseToObject(courses)
+            }),
+        )
+        .catch(next);
+}
+```
+Add trash courses view
+
+**src/resources/views/me/trash-courses.hbs**
+```hbs
+<div class="mt-4">
+    <div>
+      <a href="/me/stored/courses">Danh sách khóa học</a>
+      <h3>Khóa học đã xóa</h3>
+    </div>
+
+    <table class="table mt-4">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">Tên khóa học</th>
+                <th scope="col">Trình độ</th>
+                <th scope="col" colspan="2">Thời gian tạo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each courses}}
+            <tr>
+                <th scope="row">{{sum @index 1}}</th>
+                <td>{{this.name}}</td>
+                <td>{{this.level}}</td>
+                <td>{{this.createdAt}}</td>
+                <td>
+                    <a href="/courses/{{this._id}}/edit" class="btn btn-link">Khôi phục</a>
+                    <a href="" class="btn btn-link" data-toggle="modal" data-id="{{this._id}}" data-target="#delete-course-modal">Xóa vĩnh viễn</a>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+              <td colspan="5" class="text-center">
+                Thùng rác trống.
+                <a href="/me/stored/courses">Danh sách khóa học</a>
+              </td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+</div>
+```
+Get courses was deleted
+```js
+// [GET] /me/trash/courses
+trashCourses(req, res, next) {
+    Course.findDeleted({})
+        .then(courses => 
+            res.render("me/trash-courses", {
+                courses: multipleMongooseToObject(courses)
+            }),
+        )
+        .catch(next);
+}
+```
+
+Output:
+
+[![image.png](https://i.postimg.cc/KvB1WcQk/image.png)](https://postimg.cc/BXZZL0r4)
+
+When you click Restore, you should submit to `CourseController`, we will using PUT, PATCH methods.
+
+**src/routes/courses.js**
+```js
+router.patch("/:id/restore", courseController.restore);
+```
+
+Add restore PATCH method:
+
+**src/app/controllers/CourseController.js**
+```js
+// [PATCH] /courses/:id/restore
+restore(req, res, next) {
+    Course.restore({ _id: req.params.id })
+        .then(() => res.redirect('back'))
+        .catch(next);
+}
+```
+
+Change button name with no href
+
+**src/resources/views/me/trash-courses.hbs**
+```hbs
+<td>
+    <a href="" class="btn btn-link btn-restore" data-id="{{this._id}}">Khôi phục</a>
+    <a href="" class="btn btn-link" data-toggle="modal" data-id="{{this._id}}" data-target="#delete-course-modal">Xóa vĩnh viễn</a>
+</td>
+
+<form name="restore-course-form" method="POST"></form>
+...
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        ...
+        var restoreForm = document.forms['restore-course-form'];
+        var restoreBtn = $('.btn-restore');
+
+        ...
+
+        // Restore btn clicked
+        restoreBtn.click(function (e) {
+            e.preventDefault();
+
+            var courseId = $(this).data('id');
+            restoreForm.action = '/courses/' + courseId + '/restore?_method=PATCH';
+            restoreForm.submit();
+        });
+    });
+</script>
+```
+## Add permanently delete
+So let's go to add permanently delete button. It will be show message this action cannot restore.
+
+First, add forceDestroy method:
+
+**src/routes/courses.js**
+```js
+router.delete("/:id/force", courseController.forceDestroy);
+```
+
+Then add `forceDestroy` method with DELETE method:
+
+**src/app/controllers/CourseController.js**
+```js
+// [DELETE] /courses/:id/force
+forceDestroy(req, res, next) {
+    Course.deleteOne({ _id: req.params.id })
+        .then(() => res.redirect('back'))
+        .catch(next);
+}
+```
+
+Change confirm permanently delete courses:
+
+**src/resources/views/me/trash-courses.hbs**
+```hbs
+{{!-- Confirm delete course --}}
+<div id="delete-course-modal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Xóa khóa học?</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Hành động này không thể khôi phục. Bạn vẫn muốn xóa khóa học này?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
+        <button id="btn-delete-course" type="button" class="btn btn-danger">Xóa vĩnh viễn</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var courseId;
+        var deleteForm = document.forms['delete-course-form'];
+        var restoreForm = document.forms['restore-course-form'];
+        var btnDeleteCourse = document.getElementById('btn-delete-course');
+        var restoreBtn = $('.btn-restore');
+
+        // When dialog confirm clicked
+        $('#delete-course-modal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            courseId = button.data('id');
+        });
+        
+        // When delete course btn clicked
+        btnDeleteCourse.onclick = function () {
+            deleteForm.action = '/courses/' + courseId + '/force?_method=DELETE';
+            deleteForm.submit();
+        }
+
+        // Rest code
+        ...
+    });
+</script>
+```
+
+So as you can see, if you clicked Permanently delete, it will be show message: _This action cannot restored. Do you want still delete this course?_
+
+[![image.png](https://i.postimg.cc/sDvjXqmJ/image.png)](https://postimg.cc/ppMbc0g9)
