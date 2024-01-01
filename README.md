@@ -1739,3 +1739,116 @@ Change confirm permanently delete courses:
 So as you can see, if you clicked Permanently delete, it will be show message: _This action cannot restored. Do you want still delete this course?_
 
 [![image.png](https://i.postimg.cc/sDvjXqmJ/image.png)](https://postimg.cc/ppMbc0g9)
+
+**Update**: If you delete courses but was still show course was deleted, you can fix code using `findWithDelete` method:
+
+**MeController.js**
+```js
+// [GET] /me/trash/courses
+trashCourses(req, res, next) {
+    Course.findWithDeleted({ deleted: true })
+        .then((courses) =>
+            res.render('me/trash-courses', {
+                courses: multipleMongooseToObject(courses),
+            }),
+        )
+        .catch(next);
+}
+```
+# Deleted count documents
+We want to show number of deleted courses in trash, otherwise do not show trash page. We use `countDocumentsDeleted` method to count courses was deleted. We use Promise with destructuring JS.
+```js
+const Course = require('../models/Course');
+const { multipleMongooseToObject } = require('../../util/mongoose');
+
+class MeController {
+    // [GET] /me/stored/courses
+    storedCourses(req, res, next) {
+        Promise.all([Course.find({}), Course.countDocumentsDeleted()])
+            .then(([courses, deletedCount]) => 
+                res.render('me/stored-courses', {
+                    deletedCount,
+                    courses: multipleMongooseToObject(courses),
+                })
+            )
+            .catch(next);
+    }
+
+    // [GET] /me/trash/courses
+    trashCourses(req, res, next) {
+        Course.findWithDeleted({ deleted: true })
+            .then((courses) =>
+                res.render('me/trash-courses', {
+                    courses: multipleMongooseToObject(courses),
+                }),
+            )
+            .catch(next);
+    }
+}
+
+module.exports = new MeController();
+```
+## Add time deleted
+Add count courses was deleted
+
+**stores-courses.hbs**
+```html
+<a href="/me/trash/courses">Thùng rác ({{deletedCount}})</a>
+```
+Change time was deleted courses
+
+**trash-courses.hbs**
+```html
+<table class="table mt-4">
+	<thead>
+		<tr>
+			<th scope="col">#</th>
+			<th scope="col">Tên khóa học</th>
+			<th scope="col">Trình độ</th>
+			<th scope="col" colspan="2">Thời gian xóa</th>
+		</tr>
+	</thead>
+	<tbody>
+		{{#each courses}}
+		<tr>
+			<th scope="row">{{sum @index 1}}</th>
+			<td>{{this.name}}</td>
+			<td>{{this.level}}</td>
+			<td>{{this.deletedAt}}</td>
+			<td>
+				<a href="" class="btn btn-link btn-restore" data-id="{{this._id}}">Khôi phục</a>
+				<a href="" class="btn btn-link" data-toggle="modal" data-id="{{this._id}}" data-target="#delete-course-modal">Xóa vĩnh viễn</a>
+			</td>
+		</tr>
+		{{else}}
+		<tr>
+			<td colspan="5" class="text-center">
+				Thùng rác trống.
+				<a href="/me/stored/courses">Danh sách khóa học</a>
+			</td>
+		</tr>
+		{{/each}}
+	</tbody>
+</table>
+```
+
+Output:
+
+[![image.png](https://i.postimg.cc/VkByDBsT/image.png)](https://postimg.cc/sMX02Wh9)
+
+**Update**: You should using `countDocumentsWithDeleted` method:
+
+**src/app/controllers/MeController.js**
+```js
+// [GET] /me/stored/courses
+storedCourses(req, res, next) {
+    Promise.all([Course.find({}), Course.countDocumentsWithDeleted({ deleted: true })])
+        .then(([courses, deletedCount]) => 
+            res.render("me/stored-courses", {
+                deletedCount,
+                courses: multipleMongooseToObject(courses),
+            }),
+        )
+        .catch(next);
+}
+```
