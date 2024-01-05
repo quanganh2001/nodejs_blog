@@ -2016,3 +2016,26 @@ handleFormActions(req, res, next) {
 }
 ```
 We will delete courses which has ids in the list, when complete, redirect back again.
+# Fix bug
+We need to fix change delete class to delete attribute, then listen this attribute.
+
+**stored-courses.hbs**
+```html
+<button class="btn btn-primary btn-sm check-all-submit-btn" disabled>Thực hiện</button>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+        ...
+
+		// Re-render check all submit button
+		function renderCheckAllSubmitBtn() {
+			var checkedCount = $('input[name="courseIds[]"]:checked').length;
+			if (checkedCount > 0) {
+				checkAllSubmitBtn.attr('disabled', false);
+			} else {
+				checkAllSubmitBtn.attr('disabled', true);
+			}
+		}
+	});
+</script>
+```
