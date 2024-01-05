@@ -1852,3 +1852,167 @@ storedCourses(req, res, next) {
         .catch(next);
 }
 ```
+# Delete courses counts
+## Add forms bootstrap
+
+Add forms bootstrap with class `mt-4`, add flex and center align items, set button disabled, when choose delete action, action button enabled.
+
+**stored-courses.hbs**
+```html
+<div class="mt-4 d-flex align-items-center">
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="" id="defaultCheck1">
+        <label class="form-check-label" for="defaultCheck1">
+        Chọn tất cả
+        </label>
+    </div>
+
+    <select class="form-control form-control-sm checkbox-select-all-options" name="action" required>
+        <option value="">-- Hành động --</option>
+        <option value="delete">Xóa</option>
+    </select>
+
+    <button class="btn btn-primary btn-sm disabled">Thực hiện</button>
+</div>
+```
+## Add checkbox
+
+Set name `courseIds[]`
+**stored-courses.hbs**
+```html
+<td>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="courseIds[]" value="{{this._id}}">
+    </div>
+</td>
+```
+## CSS actions
+
+**src/resources/scss/app.scss**
+```scss
+.checkbox-select-all-options {
+    width: 160px;
+    margin: 0 16px;
+}
+```
+## Set select all button
+When click select all button, all checkbox checked, when unchecked one checkbox, select all button will cancel. We will use jQuery to set select all button, all checkbox checked, set change listen event.
+
+**stored-courses.hbs**
+```html
+<input class="form-check-input" type="checkbox" value="" id="checkbox-all">
+<label class="form-check-label" for="checkbox-all">
+    Chọn tất cả
+</label>
+...
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var courseId;
+        var deleteForm = document.forms['delete-course-form'];
+        var btnDeleteCourse = document.getElementById('btn-delete-course');
+        var checkboxAll = $('#checkbox-all');
+        var courseItemCheckbox = $('input[name="courseIds[]"]');
+
+        ...
+
+        // Checkbox all clicked
+        checkboxAll.change(function () {
+            var isCheckedAll = $(this).prop('checked');
+            courseItemCheckbox.prop('checked', isCheckedAll);
+        });
+    });
+</script>
+```
+Set when unchecked any one checkbox, select all checkbox button will cancel. It will compare the value of count checked. If equals, checked select all. Otherwise, unchecked select all.
+
+**stored-courses.hbs**
+```html
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var courseId;
+        var deleteForm = document.forms['delete-course-form'];
+        var btnDeleteCourse = document.getElementById('btn-delete-course');
+        var checkboxAll = $('#checkbox-all');
+        var courseItemCheckbox = $('input[name="courseIds[]"]');
+
+        ...
+
+        // Checkbox all change
+        checkboxAll.change(function () {
+            var isCheckedAll = $(this).prop('checked');
+            courseItemCheckbox.prop('checked', isCheckedAll);
+        });
+
+        // Course item checkbox change
+        courseItemCheckbox.change(function() {
+            var isCheckedAll = courseItemCheckbox.length === $('input[name="courseIds[]"]:checked').length;
+            checkboxAll.prop('checked', isCheckedAll);
+        })
+    });
+</script>
+```
+## Set delete action enable
+Set delete action enable when check at least one checkbox, it will be enable. Let's create a function to re-render check all submit button
+
+**stored-courses.hbs**
+```js
+var checkAllSubmitBtn = $('.check-all-submit-btn');
+
+// Re-render check all submit button
+function renderCheckAllSubmitBtn() {
+    var checkedCount = $('input[name="courseIds[]"]:checked').length;
+    if (checkedCount > 0) {
+        checkAllSubmitBtn.removeClass('disabled');
+    } else {
+        checkAllSubmitBtn.addClass('disabled');
+    }
+}
+```
+Change div element to form element:
+```html
+<form class="mt-4">
+    ...
+</form>
+```
+Let's check if has permission submit, you should submit form. Let's go to add name form, using POST method and create path action:
+```html
+<form class="mt-4" name="container-form" method="POST" action="/courses/handle-form-actions">
+    ...
+</form>
+```
+```js
+var containerForm = document.forms['container-form'];
+
+// Check all submit button clicked
+checkAllSubmitBtn.on('submit', function (e) {
+    var isSubmitable = !$(this).hasClass('disabled');
+    if (!isSubmitable) {
+        e.preventDefault();
+    }
+});
+```
+When unchecked, prevent default event cancel.
+## Create path action
+Let's go to create POST method, create handle form actions method:
+
+**src/routes/courses.js**
+```js
+router.post("/handle-form-actions", courseController.handleFormActions);
+```
+
+**src/app/controllers/CourseController.js**
+```js
+// [POST] /courses/handle-form-actions
+handleFormActions(req, res, next) {
+    switch(req.body.action) {
+        case 'delete':
+            Course.delete({ _id: { $in: req.body.courseIds } })
+                .then(() => res.redirect('back'))
+                .catch(next);
+            break;
+        default:
+            res.json({ message: 'Action is invalid!' });
+    }
+}
+```
+We will delete courses which has ids in the list, when complete, redirect back again.
