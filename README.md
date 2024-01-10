@@ -2039,3 +2039,40 @@ We need to fix change delete class to delete attribute, then listen this attribu
 	});
 </script>
 ```
+# Middleware
+## Significant
+- middleware (standing between components in the software model)
+
+Browser (client) =========== Request ============> Server (Node)
+
+Browser (client) =========== Response ============> Server (Node)
+## Role
+- Middleware has a role like as "the guard"
+
+Home ===================> The guard 1 (middleware 1): The guard 2 (middleware 2) Event (show me a ticket)
+
+Home <=================== Event
+
+1. Check a ticket (to control -> validation)
+2. Don't allow to enter
+3. Allow to enter (Validation passed -> Allow)
+4. Edit / Change
+## Application
+- Build authentication function
+- Build authorization function
+- To share the value of arrays to all views (BE)
+
+Example:
+```js
+app.use(bacBaoVe);
+
+function bacBaoVe (req, res, next) {
+    if (['vethuong', 'vevip'].includes(req.query.ve)) {
+        req.face = 'Gach gach gach!!!';
+        return next();
+    }
+    res.status(403).json({
+        message: "Access denied"
+    });
+}
+```

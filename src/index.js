@@ -13,6 +13,7 @@ db.connect();
 const app = express();
 const port = 3000;
 
+// Use static folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(
@@ -23,6 +24,18 @@ app.use(
 app.use(express.json());
 
 app.use(methodOverride('_method'));
+
+app.use(bacBaoVe);
+
+function bacBaoVe (req, res, next) {
+    if (['vethuong', 'vevip'].includes(req.query.ve)) {
+        req.face = 'Gach gach gach!!!';
+        return next();
+    }
+    res.status(403).json({
+        message: "Access denied"
+    });
+}
 
 // HTTP logger
 // app.use(morgan('combined'));
