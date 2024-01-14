@@ -2076,3 +2076,153 @@ function bacBaoVe (req, res, next) {
     });
 }
 ```
+# Sort middleware
+## Add Open Iconic Bootstrap
+Go to [Open Iconic page](https://www.appstudio.dev/app/OpenIconic.html), extract zip file then import Open Iconic Bootstrap CSS
+```html
+<link rel="stylesheet" href="/vendor/open-iconic-master/font/css/open-iconic-bootstrap.css">
+```
+## Add sort icon
+We will use elevator icon:
+
+**stored-courses.hbs**
+```html
+<a href="">
+    <span class="oi oi-elevator"></span>
+</a>
+```
+We will send query parameter to notification we use this function, which column to sort and which type to sort. For example, desc mean descending
+
+**stored-courses.hbs**
+```html
+<a href="?_sort&column=name&type=desc">
+    <span class="oi oi-elevator"></span>
+</a>
+```
+
+**src/app/controllers/MeController.js**
+```js
+class MeController {
+    // [GET] /me/stored/courses
+    storedCourses(req, res, next) {
+        let courseQuery = Course.find({});
+
+        if (req.query.hasOwnProperty('_sort')) {
+            courseQuery = courseQuery.sort({
+                [req.query.column]: req.query.type
+            });
+        }
+
+        Promise.all([courseQuery, Course.countDocumentsWithDeleted({ deleted: true })])
+            .then(([courses, deletedCount]) => 
+                res.render("me/stored-courses", {
+                    deletedCount,
+                    courses: multipleMongooseToObject(courses),
+                }),
+            )
+            .catch(next);
+    }
+
+    ...
+}
+```
+But as you can see, we want to apply some other controllers, we need to copy. So instead copy, we will use middleware
+
+Let's create middleware folder in `src/app/middlewares`. Using `res.locals`. This property is useful for exposing request-level information such as the request path name, authenticated user, user settings, and so on to templates rendered within the application.
+
+Default sort function is off, type is default, mean when the user is not sort, check if has sort query, enable sort function, set type default again.
+
+```js
+module.exports = function (req, res, next) {
+    res.locals._sort = {
+        enabled: false,
+        type: 'default'
+    };
+
+    if (req.query.hasOwnProperty('_sort')) {
+        res.locals._sort.enabled = true;
+        res.locals._sort.type = req.query.type;
+        res.locals._sort.column = req.query.column;
+    }
+
+    next();
+}
+```
+Import `SortMiddleware`:
+
+**src/index.js**
+```js
+const SortMiddleware = require('./app/middlewares/SortMiddleware');
+
+// Custom middlewares
+app.use(SortMiddleware);
+```
+So let's return json: `res.json(res.locals._sort);`
+
+Other method: Using `Object.assign()`
+```js
+if (req.query.hasOwnProperty('_sort')) {
+    Object.assign(res.locals._sort, {
+        enabled: true,
+        type: req.query.type,
+        column: req.query.column,
+    });
+}
+```
+## Write helpers
+We need to create call `sortable` helpers instead if-else with field and sort are arguments. Define icons, default using elevator icon, asc using descending icon, desc using ascending icon. (using name open iconic class, not HTML code).
+
+Define types sort, default first time sort using descending, when click to ascending using descending. Otherwise when click to descending using ascending.
+
+Define `sortType`, check field send URL, if correct change `sort.type`. Otherwise using icon default.
+
+**src/index.js**
+```js
+helpers: {
+    sortable: (field, sort) => {
+        const sortType = field === sort.column ? sort.type : 'default';
+
+        const icons = {
+            default: 'oi oi-elevator',
+            asc: 'oi oi-sort-ascending',
+            desc: 'oi oi-sort-descending'
+        };
+        const types = {
+            default: 'desc',
+            asc: 'desc',
+            desc: 'asc',
+        };
+
+        
+        const icon = icons[sortType];
+        const type = types[sort.type];
+
+        return `<a href="?_sort&column=${field}&type=${type}">
+            <span class="${icon}"></span>                
+        </a>`;
+    }
+}
+```
+Call `sortable` handlebar helpers and sort fill databases (according MongoDB)
+
+**stored-courses.hbs**
+```html
+<th scope="col">
+    Tên khóa học
+    {{{sortable 'name' _sort}}}
+</th>
+<th scope="col">
+    Trình độ
+    {{{sortable 'level' _sort}}}
+</th>
+<th scope="col" colspan="2">
+    Thời gian tạo
+    {{{sortable 'createdAt' _sort}}}
+</th>
+```
+
+Let's to uncomment to change real time
+
+Output:
+
+[![image.png](https://i.postimg.cc/8zrc3vBk/image.png)](https://postimg.cc/jDtRnLFB)
