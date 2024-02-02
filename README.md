@@ -2226,3 +2226,128 @@ Let's to uncomment to change real time
 Output:
 
 [![image.png](https://i.postimg.cc/8zrc3vBk/image.png)](https://postimg.cc/jDtRnLFB)
+# Sort query helper
+## Change to lowercase
+Change to lowercase from `SortMiddleware` to `sortMiddleware`
+## Logic processing
+Do not trust by user because hacker thing to do security. Hacker assume write scirpt anything.
+
+Set constant `isValidtype`:
+
+**src/app/controllers/MeController.js**
+```js
+if (req.query.hasOwnProperty('_sort')) {
+    const isValidtype = ['asc', 'desc'].includes(req.query.type)
+    courseQuery = courseQuery.sort({
+        [req.query.column]: isValidtype ? req.query.type : 'desc',
+    });
+}
+```
+## HTML Escaping
+If you use two brackets, the `a` tag element will be leak. We will process URL using `escapeExpression` method and `SafeString` method to safe.
+
+We need helpers function with a file name `handlebars.js`. We should protect href.
+
+**src/helpers/handlebars.js**
+```js
+const Handlebars = require('handlebars');
+
+module.exports = {
+    sum: (a, b) => a + b,
+    sortable: (field, sort) => {
+        const sortType = field === sort.column ? sort.type : 'default';
+
+        const icons = {
+            default: 'oi oi-elevator',
+            asc: 'oi oi-sort-ascending',
+            desc: 'oi oi-sort-descending'
+        };
+        const types = {
+            default: 'desc',
+            asc: 'desc',
+            desc: 'asc',
+        };
+
+        
+        const icon = icons[sortType];
+        const type = types[sort.type];
+
+        const href = Handlebars.escapeExpression(`?_sort&column=${field}&type=${type}`)
+
+        const output = `<a href="${href}">
+            <span class="${icon}"></span>                
+        </a>`;
+        return new Handlebars.SafeString(output);
+    },
+};
+```
+
+**src/index.js**
+```js
+// Template engine
+app.engine(
+    "hbs",
+    handlebars({
+        extname: ".hbs",
+        helpers: require('./helpers/handlebars')
+    }),
+);
+```
+
+## Query Helpers
+We don't need repeat this code. Change `Course` to `CourseSchema`:
+
+**src/app/models/Course.js**
+```js
+const CourseSchema = new Schema(
+    {
+        name: { type: String, required: true, },
+        description: { type: String },
+        image: { type: String },
+        videoId: { type: String, required: true, },
+        level: { type: String },
+        slug: { type: String, slug: 'name', unique: true },
+    }, 
+    {
+    timestamps: true,
+    }
+);
+
+// Custom query helpers
+CourseSchema.query.sortable = function (req) {
+    if (req.query.hasOwnProperty('_sort')) {
+        const isValidtype = ['asc', 'desc'].includes(req.query.type)
+        return this.sort({
+            [req.query.column]: isValidtype ? req.query.type : 'desc',
+        });
+    }
+    return this;
+}
+
+// Add plugins
+mongoose.plugin(slug);
+CourseSchema.plugin(mongooseDelete, { 
+    deletedAt: true,
+    overrideMethods: 'all',
+});
+
+module.exports = mongoose.model('Course', CourseSchema);
+```
+Add query helper:
+
+**src/app/controllers/MeController.js**
+```js
+storedCourses(req, res, next) {
+    Promise.all([
+        Course.find({}).sortable(req), 
+        Course.countDocumentsWithDeleted({ deleted: true })]
+    )
+        .then(([courses, deletedCount]) => 
+            res.render("me/stored-courses", {
+                deletedCount,
+                courses: multipleMongooseToObject(courses),
+            }),
+        )
+        .catch(next);
+}
+```
