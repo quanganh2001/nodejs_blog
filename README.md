@@ -2351,3 +2351,111 @@ storedCourses(req, res, next) {
         .catch(next);
 }
 ```
+# Autoincrement _id field
+MongoDB id field default is ObjectID, so we can add `_id` field in `CourseSchema`
+
+If you want to increment the _id field which is special to mongoose, you have to explicitly specify it as a Number and tell mongoose to not interfere:
+**src/app/models/Course.js**
+```js
+const CourseSchema = new Schema(
+    {
+        _id: { type: Number, },
+        name: { type: String, required: true, },
+        description: { type: String },
+        image: { type: String },
+        videoId: { type: String, required: true, },
+        level: { type: String },
+        slug: { type: String, slug: 'name', unique: true },
+    }, 
+    {
+        _id: false,
+        timestamps: true,
+    }
+);
+```
+In this case you don't have to specify inc_field because the default value is _id
+## Install mongoose sequence
+Type: `npm install --save mongoose-sequence`
+
+This package will help autoincrement handling for mongoose.
+
+You must pass your DB connection instance for this plugin to work. This is needed in order to create a collection on your DB where to store increment references.
+
+```js
+const AutoIncrement = require('mongoose-sequence')(mongoose);
+```
+
+In this case you don't have to specify inc_field because the default value is _id
+```js
+CourseSchema.plugin(AutoIncrement);
+```
+
+Let's try to create courses without using loop:
+
+**src/app/controllers/CourseController.js**
+```js
+// [POST] /courses/store
+store(req, res, next) {
+    req.body.image = `https://i.ytimg.com/vi/${req.body.videoId}/sddefault.jpg`
+    const course = new Course(req.body);
+    course
+        .save()
+        .then(() => res.redirect('/me/stored/courses'))
+        .catch(next);
+}
+```
+
+Due to base on sequence, it will be create `counters` collection.
+
+[![image.png](https://i.postimg.cc/Px5rc93R/image.png)](https://postimg.cc/3yzT0SHX)
+
+Let's change sortable to `_id` sort:
+```html
+<table class="table mt-4">
+    <thead>
+        <tr>
+            <th scope="col"></th>
+            <th scope="col">
+                ID
+                {{{sortable '_id' _sort}}}
+            </th>
+            <th scope="col">
+                Tên khóa học
+                {{{sortable 'name' _sort}}}
+            </th>
+            <th scope="col">
+                Trình độ
+            </th>
+            <th scope="col" colspan="2">
+                Thời gian tạo
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        {{#each courses}}
+        <tr>
+            <td>
+                <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="courseIds[]" value="{{this._id}}">
+                </div>
+            </td>
+            <th scope="row">{{this._id}}</th>
+            <td>{{this.name}}</td>
+            <td>{{this.level}}</td>
+            <td>{{this.createdAt}}</td>
+            <td>
+                <a href="/courses/{{this._id}}/edit" class="btn btn-link">Sửa</a>
+                <a href="" class="btn btn-link" data-toggle="modal" data-id="{{this._id}}" data-target="#delete-course-modal">Xóa</a>
+            </td>
+        </tr>
+        {{else}}
+        <tr>
+            <td colspan="5" class="text-center">
+            Bạn chưa đăng khóa học nào.
+            <a href="/courses/create">Đăng khóa học</a>
+            </td>
+        </tr>
+        {{/each}}
+    </tbody>
+</table>
+```

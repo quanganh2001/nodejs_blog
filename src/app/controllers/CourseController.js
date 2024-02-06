@@ -18,6 +18,8 @@ class CourseController {
         res.render('courses/create');
     }
 
+    // Level 2 (1k xu) => A và B cùng mua 1 món hàng 500 xu
+
     // [POST] /courses/store
     store(req, res, next) {
         req.body.image = `https://i.ytimg.com/vi/${req.body.videoId}/sddefault.jpg`;
@@ -25,7 +27,7 @@ class CourseController {
         course
             .save()
             .then(() => res.redirect('/me/stored/courses'))
-            .catch((error) => {});
+            .catch(next);
     }
 
     // [GET] /courses/:id/edit
